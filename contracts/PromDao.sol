@@ -25,10 +25,10 @@ contract PromDao is ReentrancyGuard {
     mapping(address => TradeProposal) public tradeListingAdditionProposal;
     mapping(address => TradeProposal) public tradeListingRemovalProposal;
 
-    //Proposal-> User Address -> Already Voted Amount
+    // Proposal -> User Address -> Already Voted Amount
     mapping(address => mapping(address => uint256)) public votedProposals;
 
-    uint256 public votesThreshold = ((20000000 * 10**18) / 100) * 20;
+    uint256 public votesThreshold = ((20000000 * 10 ** 18) / 100) * 20;
 
     address public prom;
 
@@ -48,11 +48,7 @@ contract PromDao is ReentrancyGuard {
     event RentalListingRemovalProposalVoted(address proposalAddress);
     event RentalListingRemovalProposalVoteRemoved(address proposalAddress);
 
-    function _transfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal {
+    function _transfer(address _from, address _to, uint256 _amount) internal {
         if (_from == address(this)) {
             IERC20(prom).safeTransfer(_to, _amount);
         } else {
@@ -60,9 +56,9 @@ contract PromDao is ReentrancyGuard {
         }
     }
 
-    function submitTradeListingAdditionProposal(address _collectionToAdd)
-        public
-    {
+    function submitTradeListingAdditionProposal(
+        address _collectionToAdd
+    ) public {
         require(
             tradeListingAdditionProposal[_collectionToAdd].timestamp == 0,
             "already created"
@@ -72,9 +68,9 @@ contract PromDao is ReentrancyGuard {
         emit TradeListingAdditionProposalSubmitted(_collectionToAdd);
     }
 
-    function submitTradeListingRemovalProposal(address _collectionToRemove)
-        public
-    {
+    function submitTradeListingRemovalProposal(
+        address _collectionToRemove
+    ) public {
         require(
             tradeListingRemovalProposal[_collectionToRemove].timestamp == 0,
             "already created"
@@ -183,10 +179,10 @@ contract PromDao is ReentrancyGuard {
 
     /**
 @param _proposalType 0 => rentalAddition, 1 => rentalRemoval, 2=> tradeAddition, 3 tradeRemoval */
-    function claimTokens(address _proposalAddress, uint256 _proposalType)
-        public
-        nonReentrant
-    {
+    function claimTokens(
+        address _proposalAddress,
+        uint256 _proposalType
+    ) public nonReentrant {
         uint256 votedAmount = votedProposals[_proposalAddress][msg.sender];
         if (_proposalType == 0) {
             if (
