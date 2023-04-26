@@ -57,10 +57,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AddressRegistry__factory>;
     getContractFactory(
-      name: "PromDao",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.PromDao__factory>;
-    getContractFactory(
       name: "ReentrancyAttacker",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ReentrancyAttacker__factory>;
@@ -73,9 +69,29 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.PromDao__factory>;
     getContractFactory(
+      name: "IAddressRegistry",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IAddressRegistry__factory>;
+    getContractFactory(
+      name: "IPromFeesDao",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IPromFeesDao__factory>;
+    getContractFactory(
       name: "PromDaoGovernanceWrap",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.PromDaoGovernanceWrap__factory>;
+    getContractFactory(
+      name: "IAddressRegistry",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IAddressRegistry__factory>;
+    getContractFactory(
+      name: "ITradeMarketplace",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ITradeMarketplace__factory>;
+    getContractFactory(
+      name: "PromFieldSettingDao",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.PromFieldSettingDao__factory>;
 
     getContractAt(
       name: "Ownable",
@@ -133,11 +149,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.AddressRegistry>;
     getContractAt(
-      name: "PromDao",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.PromDao>;
-    getContractAt(
       name: "ReentrancyAttacker",
       address: string,
       signer?: ethers.Signer
@@ -153,10 +164,35 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.PromDao>;
     getContractAt(
+      name: "IAddressRegistry",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IAddressRegistry>;
+    getContractAt(
+      name: "IPromFeesDao",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IPromFeesDao>;
+    getContractAt(
       name: "PromDaoGovernanceWrap",
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.PromDaoGovernanceWrap>;
+    getContractAt(
+      name: "IAddressRegistry",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IAddressRegistry>;
+    getContractAt(
+      name: "ITradeMarketplace",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ITradeMarketplace>;
+    getContractAt(
+      name: "PromFieldSettingDao",
+      address: string,
+      signer?: ethers.Signer
+    ): Promise<Contracts.PromFieldSettingDao>;
 
     // default types
     getContractFactory(

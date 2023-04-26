@@ -3,4 +3,5 @@
 /* eslint-disable */
 import type * as reentranctAttackerSol from "./ReentranctAttacker.sol";
 export type { reentranctAttackerSol };
+export type { AddressRegistry } from "./AddressRegistry";
 export type { TERC20 } from "./TERC20";

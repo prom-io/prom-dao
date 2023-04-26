@@ -3,6 +3,8 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { TERC20 } from "../typechain-types/contracts/helpers/TERC20";
 import { PromDaoGovernanceWrap } from "../typechain-types/contracts/PromDaoGovernanceWrap";
+import { PromFieldSettingDao } from "../typechain-types/contracts/PromFeesDao.sol";
+import { AddressRegistry } from "../typechain-types/contracts/helpers/AddressRegistry";
 import { ReentrancyAttacker } from "../typechain-types/contracts/helpers/ReentranctAttacker.sol/ReentrancyAttacker";
 
 describe("Smoke functionality of Prom DAO", () => {
@@ -13,9 +15,16 @@ describe("Smoke functionality of Prom DAO", () => {
       promOwner: SignerWithAddress;
     let prom: TERC20;
     let wrap: PromDaoGovernanceWrap;
+    let addressRegistry: AddressRegistry;
+    let feesDao: PromFieldSettingDao;
 
     before(async () => {
       [deployer, hacker, user, promOwner] = await ethers.getSigners();
+      addressRegistry = (await (
+        await (await ethers.getContractFactory("AddressRegistry"))
+          .connect(deployer)
+          .deploy()
+      ).deployed()) as AddressRegistry;
       prom = (await (
         await (await ethers.getContractFactory("TERC20"))
           .connect(promOwner)
@@ -24,8 +33,15 @@ describe("Smoke functionality of Prom DAO", () => {
       wrap = (await (
         await (await ethers.getContractFactory("PromDaoGovernanceWrap"))
           .connect(deployer)
-          .deploy(prom.address)
+          .deploy(prom.address, addressRegistry.address)
       ).deployed()) as PromDaoGovernanceWrap;
+      feesDao = (await (
+        await (
+          await ethers.getContractFactory("PromFieldSettingDao")
+        ).deploy(addressRegistry.address, ethers.utils.parseEther("15"))
+      ).deployed()) as PromFieldSettingDao;
+      await addressRegistry.setPromFeesDao(feesDao.address);
+      await addressRegistry.setImplementationPower(wrap.address);
       await prom
         .connect(promOwner)
         .transfer(hacker.address, ethers.utils.parseEther("10"));
@@ -74,6 +90,7 @@ describe("Smoke functionality of Prom DAO", () => {
         wrap.connect(hacker).transfer(user.address, 15)
       ).to.be.revertedWithCustomError(wrap, "TransfersNotAllowed");
       await wrap.connect(hacker).unwrap(ethers.utils.parseEther("2"));
+      expect(await wrap.balanceOf(hacker.address)).to.be.equal(0);
     });
     it("should not fall for reentrancy attack in wrapping", async () => {
       const reentrancy = (await (

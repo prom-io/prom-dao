@@ -2,4 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as reentranctAttackerSol from "./ReentranctAttacker.sol";
+export { AddressRegistry__factory } from "./AddressRegistry__factory";
 export { TERC20__factory } from "./TERC20__factory";

@@ -11,34 +11,42 @@ error ApprovesNotAllowed();
 error NotEnoughPower();
 error ZeroAddress();
 
+interface IAddressRegistry {
+    function promFeesDao() external returns (address);
+}
+
+interface IPromFeesDao {
+    function cleanseAll(address, uint256) external;
+}
+
 contract PromDaoGovernanceWrap is ReentrancyGuard, ERC20 {
     IERC20 public immutable prom;
+    IAddressRegistry public addressRegistry;
 
     mapping(address => uint256) public wrappedValue;
 
     event Wrapped(uint256 amount);
     event Unwrapped(uint256 amount);
 
-    constructor(IERC20 _prom) ERC20("Prom Fee Influence Power", "PFIP") {
-        if (address(_prom) == address(0)) {
+    constructor(
+        IERC20 _prom,
+        IAddressRegistry _addressRegistry
+    ) ERC20("Prom Fee Influence Power", "PFIP") {
+        if (
+            address(_prom) == address(0) ||
+            address(_addressRegistry) == address(0)
+        ) {
             revert ZeroAddress();
         }
         prom = _prom;
+        addressRegistry = _addressRegistry;
     }
 
-    function _transfer(
-        address owner,
-        address to,
-        uint256 amount
-    ) internal virtual override {
+    function _transfer(address, address, uint256) internal virtual override {
         revert TransfersNotAllowed();
     }
 
-    function _approve(
-        address owner,
-        address spender,
-        uint256 amount
-    ) internal virtual override {
+    function _approve(address, address, uint256) internal virtual override {
         revert ApprovesNotAllowed();
     }
 
@@ -55,9 +63,11 @@ contract PromDaoGovernanceWrap is ReentrancyGuard, ERC20 {
         if (IERC20(address(this)).balanceOf(msg.sender) < _amount) {
             revert NotEnoughPower();
         }
-        // TODO:
-        // Check if there are votes done by msg.sender.
-        // If there are any - decrease them by _amount
+
+        IPromFeesDao(addressRegistry.promFeesDao()).cleanseAll(
+            msg.sender,
+            _amount
+        );
         _burn(msg.sender, _amount);
         prom.transfer(msg.sender, _amount);
         emit Unwrapped(_amount);
