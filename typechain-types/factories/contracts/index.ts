@@ -3,6 +3,4 @@
 /* eslint-disable */
 export * as promDaoGovernanceWrapSol from "./PromDaoGovernanceWrap.sol";
 export * as promFeesDaoSol from "./PromFeesDao.sol";
-export * as actionValidator from "./action-validator";
 export * as helpers from "./helpers";
-export { PromDao__factory } from "./PromDao__factory";

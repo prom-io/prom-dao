@@ -6,20 +6,45 @@ import { PromDaoGovernanceWrap } from "../typechain-types/contracts/PromDaoGover
 import { PromFieldSettingDao } from "../typechain-types/contracts/PromFeesDao.sol";
 import { AddressRegistry } from "../typechain-types/contracts/helpers/AddressRegistry";
 import { ReentrancyAttacker } from "../typechain-types/contracts/helpers/ReentranctAttacker.sol/ReentrancyAttacker";
+import { latest } from "./utils/timeMethods";
 
 describe("Smoke functionality of Prom DAO", () => {
   context("Smoke tests", async () => {
     let deployer: SignerWithAddress,
       hacker: SignerWithAddress,
       user: SignerWithAddress,
-      promOwner: SignerWithAddress;
+      promOwner: SignerWithAddress,
+      emptyUser: SignerWithAddress;
     let prom: TERC20;
     let wrap: PromDaoGovernanceWrap;
     let addressRegistry: AddressRegistry;
     let feesDao: PromFieldSettingDao;
 
+    const getProposal = async (index: number) => {
+      const [
+        deadlineTimestamp,
+        marketplace,
+        targetCollection,
+        targetFee,
+        proposalCreator,
+        upvotes,
+        downvotes,
+      ] = await feesDao.proposal(index);
+
+      return {
+        deadlineTimestamp,
+        marketplace,
+        targetCollection,
+        targetFee,
+        proposalCreator,
+        upvotes,
+        downvotes,
+      };
+    };
+
     before(async () => {
-      [deployer, hacker, user, promOwner] = await ethers.getSigners();
+      [deployer, hacker, user, promOwner, emptyUser] =
+        await ethers.getSigners();
       addressRegistry = (await (
         await (await ethers.getContractFactory("AddressRegistry"))
           .connect(deployer)
@@ -30,11 +55,17 @@ describe("Smoke functionality of Prom DAO", () => {
           .connect(promOwner)
           .deploy("Prom", "PROM", 100)
       ).deployed()) as TERC20;
+
       wrap = (await (
         await (await ethers.getContractFactory("PromDaoGovernanceWrap"))
           .connect(deployer)
           .deploy(prom.address, addressRegistry.address)
       ).deployed()) as PromDaoGovernanceWrap;
+      await expect(
+        (
+          await ethers.getContractFactory("PromDaoGovernanceWrap")
+        ).deploy(ethers.constants.AddressZero, ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(wrap, "ZeroAddress");
       feesDao = (await (
         await (
           await ethers.getContractFactory("PromFieldSettingDao")
@@ -54,6 +85,11 @@ describe("Smoke functionality of Prom DAO", () => {
       await expect(wrap.connect(user).wrap(2)).to.be.revertedWith(
         "ERC20: insufficient allowance"
       );
+    });
+    it("should not let wrap token if there are non at the caller disposal", async () => {
+      await expect(
+        wrap.connect(emptyUser).wrap(1)
+      ).to.be.revertedWithCustomError(wrap, "NotEnoughPower");
     });
     it("should let wrap correct amount of tokens and return correct amount of wrapped tokens", async () => {
       await prom
@@ -146,5 +182,85 @@ describe("Smoke functionality of Prom DAO", () => {
         wrap.connect(hacker).unwrap(ethers.utils.parseEther("1"))
       ).to.be.revertedWithCustomError(wrap, "NotEnoughPower");
     });
+    it("should let create a proposal", async () => {
+      await expect(feesDao.createFeeUpdateProposal(prom.address, 1000)).not.to
+        .be.reverted;
+      const {
+        deadlineTimestamp,
+        marketplace,
+        targetCollection,
+        targetFee,
+        proposalCreator,
+        upvotes,
+        downvotes,
+      } = await getProposal(1);
+      expect(deadlineTimestamp).to.be.equal((await latest()).add(14 * 86400));
+      expect(marketplace).to.be.equal(ethers.constants.AddressZero);
+      expect(targetCollection).to.be.equal(prom.address);
+      expect(targetFee).to.be.equal(1000);
+      expect(proposalCreator).to.be.equal(deployer.address);
+      expect(upvotes).to.be.equal(0);
+      expect(downvotes).to.be.equal(0);
+    });
+    it("should let users with power to upvote", async () => {
+      // User has 1 eth of power
+      // Deployer & Hacker 0
+      await expect(feesDao.connect(user).upvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("1")
+      );
+    });
+    it("should not abuse upvote with the same power", async () => {
+      await expect(feesDao.connect(user).upvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("1")
+      );
+    });
+    it("should let update upvote with the new power", async () => {
+      await prom
+        .connect(user)
+        .approve(wrap.address, ethers.utils.parseEther("1000"));
+      await wrap.connect(user).wrap(ethers.utils.parseEther("1"));
+      await expect(feesDao.connect(user).upvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("2")
+      );
+    });
+    it("should show ongoing proposals correctly (case single proposal)", async () => {
+      expect((await feesDao.getOngoingProposals()).length).to.be.equal(1);
+      expect((await feesDao.getOngoingProposals())[0]).to.be.equal(1);
+    });
+    it("should show participated proposals correctly (case single proposal)", async () => {
+      expect(
+        (await feesDao.getAllParticipatedProposalsByUser(user.address)).length
+      ).to.be.equal(1);
+      expect(
+        (await feesDao.getAllParticipatedProposalsByUser(user.address))[0]
+      ).to.be.equal(1);
+    });
+    it("should remove upvotes if voting power is unwrapped", async () => {
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("2")
+      );
+      console.log("user: ", user.address);
+      await wrap.connect(user).unwrap(ethers.utils.parseEther("2"));
+      expect(await wrap.balanceOf(user.address)).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should not change upvotes if voting with 0 power", async () => {});
+    it("should let user with power to downvote", async () => {});
+    it("should not abuse downvote with the same power", async () => {});
+    it("should let update downvote with the new power", async () => {});
+    it("should not change downvote if voting with 0 power", async () => {});
+    it("should not let implement the proposal if threshold is not reached", async () => {});
+    it("should let implement the proposal if threshold is reached", async () => {});
+    it("should not let implement the same proposal twice if threshold is reached", async () => {});
+    it("should not let users use the same proposal votes after implementation", async () => {});
+    it("should let create new proposals after some proposal was implemented", async () => {});
+    it("should not let implement upvote or downvote after deadline is reached", async () => {});
   });
 });

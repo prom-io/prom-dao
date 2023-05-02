@@ -33,26 +33,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IERC20__factory>;
     getContractFactory(
-      name: "IERC165",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IERC165__factory>;
-    getContractFactory(
-      name: "ActionValidator",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.ActionValidator__factory>;
-    getContractFactory(
-      name: "IPrometaAddressRegistry",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IPrometaAddressRegistry__factory>;
-    getContractFactory(
-      name: "IVaultManager",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IVaultManager__factory>;
-    getContractFactory(
-      name: "RestrictedContracts",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.RestrictedContracts__factory>;
-    getContractFactory(
       name: "AddressRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AddressRegistry__factory>;
@@ -64,10 +44,6 @@ declare module "hardhat/types/runtime" {
       name: "TERC20",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.TERC20__factory>;
-    getContractFactory(
-      name: "PromDao",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.PromDao__factory>;
     getContractFactory(
       name: "IAddressRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
@@ -119,31 +95,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.IERC20>;
     getContractAt(
-      name: "IERC165",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IERC165>;
-    getContractAt(
-      name: "ActionValidator",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.ActionValidator>;
-    getContractAt(
-      name: "IPrometaAddressRegistry",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IPrometaAddressRegistry>;
-    getContractAt(
-      name: "IVaultManager",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IVaultManager>;
-    getContractAt(
-      name: "RestrictedContracts",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.RestrictedContracts>;
-    getContractAt(
       name: "AddressRegistry",
       address: string,
       signer?: ethers.Signer
@@ -158,11 +109,6 @@ declare module "hardhat/types/runtime" {
       address: string,
       signer?: ethers.Signer
     ): Promise<Contracts.TERC20>;
-    getContractAt(
-      name: "PromDao",
-      address: string,
-      signer?: ethers.Signer
-    ): Promise<Contracts.PromDao>;
     getContractAt(
       name: "IAddressRegistry",
       address: string,

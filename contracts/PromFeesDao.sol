@@ -3,6 +3,7 @@
 pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "hardhat/console.sol";
 
 interface IAddressRegistry {
     function tradeMarketplace() external returns (address);
@@ -20,6 +21,7 @@ error IneligibleImplementation();
 error AlreadyVotedAgainst();
 error UnauthorizedCleanse();
 error InvalidCleanseAmount();
+error ExpiredProposal();
 
 contract PromFieldSettingDao is ReentrancyGuard {
     IAddressRegistry public addressRegistry;
@@ -65,53 +67,70 @@ contract PromFieldSettingDao is ReentrancyGuard {
         _;
     }
 
+    modifier OngoingProposal(uint256 _proposalIndex) {
+        if (proposal[_proposalIndex].deadlineTimestamp < block.timestamp) {
+            revert ExpiredProposal();
+        }
+        _;
+    }
+
     constructor(
         IAddressRegistry _addressRegistry,
         uint256 _initialVotesThreshold
     ) {
         addressRegistry = _addressRegistry;
         votesThreshold = _initialVotesThreshold;
+        //Initializing proposal index;
+        currentProposalIndex++;
     }
 
-    function getOngoingProposals()
-        public
-        view
-        returns (uint256[] memory ongoingProposals)
-    {
+    function getOngoingProposals() public view returns (uint256[] memory) {
         uint256 len = currentProposalIndex;
-        uint256 i;
-        if (len > 0) {
-            while (len != 0) {
-                len--;
-                // TODO: Check if it's cheaper to read timestamp just once and store in variable
-                if (
-                    block.timestamp > proposal[len].deadlineTimestamp ||
-                    proposal[len].deadlineTimestamp != 0
-                ) {
-                    ongoingProposals[i] = len;
-                    i++;
-                } else break;
-            }
+        uint256 i = 0;
+        uint256[] memory ongoingProposals = new uint256[](len);
+
+        while (len != 0) {
+            len--;
+
+            // TODO: Check if it's cheaper to read timestamp just once and store in variable
+            if (block.timestamp <= proposal[len].deadlineTimestamp) {
+                ongoingProposals[i] = len;
+                i++;
+            } else break;
         }
+
+        uint256[] memory resizedOngoingProposals = new uint256[](i);
+        for (uint256 j; j < i; j++) {
+            resizedOngoingProposals[j] = ongoingProposals[j];
+        }
+
+        return resizedOngoingProposals;
     }
 
-    function getAllParticipatedProposalsByUser()
-        public
-        view
-        returns (uint256[] memory participatedIndexes)
-    {
+    function getAllParticipatedProposalsByUser(
+        address _user
+    ) public view returns (uint256[] memory) {
         uint256[] memory indexes = getOngoingProposals();
-        uint256 index;
+        uint256[] memory participatedIndexes = new uint256[](indexes.length);
+        uint256 index = 0;
 
-        for (uint256 i; i < indexes.length; i++) {
-            if (proposalUpvotesByUser[msg.sender][indexes[i]] != 0) {
+        for (uint256 i = 0; i < indexes.length; i++) {
+            if (proposalUpvotesByUser[_user][indexes[i]] != 0) {
                 participatedIndexes[index] = indexes[i];
                 index++;
-            } else if (proposalDownvotesByUser[msg.sender][indexes[i]] != 0) {
+            } else if (proposalDownvotesByUser[_user][indexes[i]] != 0) {
                 participatedIndexes[index] = indexes[i];
                 index++;
             }
         }
+
+        // Resize the array to the actual length of participated proposals
+        uint256[] memory resizedParticipatedIndexes = new uint256[](index);
+        for (uint256 j = 0; j < index; j++) {
+            resizedParticipatedIndexes[j] = participatedIndexes[j];
+        }
+
+        return resizedParticipatedIndexes;
     }
 
     function cleanse(
@@ -129,14 +148,22 @@ contract PromFieldSettingDao is ReentrancyGuard {
     ) internal {
         if (proposalDownvotesByUser[_voter][_proposalIndex] != 0) {
             if (_amount > proposalDownvotesByUser[_voter][_proposalIndex]) {
+                proposal[_proposalIndex].downvotes -= proposalDownvotesByUser[
+                    _voter
+                ][_proposalIndex];
                 proposalDownvotesByUser[_voter][_proposalIndex] = 0;
             }
             proposalDownvotesByUser[_voter][_proposalIndex] -= _amount;
+            proposal[_proposalIndex].downvotes -= _amount;
         } else if (proposalUpvotesByUser[_voter][_proposalIndex] != 0) {
             if (_amount > proposalUpvotesByUser[_voter][_proposalIndex]) {
-                proposalDownvotesByUser[_voter][_proposalIndex] = 0;
+                proposal[_proposalIndex].upvotes -= proposalUpvotesByUser[
+                    _voter
+                ][_proposalIndex];
+                proposalUpvotesByUser[_voter][_proposalIndex] = 0;
             }
             proposalUpvotesByUser[_voter][_proposalIndex] -= _amount;
+            proposal[_proposalIndex].upvotes -= _amount;
         }
     }
 
@@ -144,7 +171,10 @@ contract PromFieldSettingDao is ReentrancyGuard {
         address _voter,
         uint256 _amount
     ) external nonReentrant OwnerOrWrapper(_voter) {
-        uint256[] memory participatedI = getAllParticipatedProposalsByUser();
+        uint256[] memory participatedI = getAllParticipatedProposalsByUser(
+            _voter
+        );
+
         for (uint256 i; i < participatedI.length; i++) {
             _cleanse(_voter, participatedI[i], _amount);
         }
@@ -166,18 +196,36 @@ contract PromFieldSettingDao is ReentrancyGuard {
         currentProposalIndex++;
     }
 
-    function upvote(uint256 _proposalIndex) external nonReentrant {
-        proposalDownvotesByUser[msg.sender][_proposalIndex] = 0;
-        proposalUpvotesByUser[msg.sender][_proposalIndex] = IERC20(
-            addressRegistry.implementationPower()
-        ).balanceOf(msg.sender);
+    function upvote(
+        uint256 _proposalIndex
+    ) external nonReentrant OngoingProposal(_proposalIndex) {
+        uint256 upvotes = IERC20(addressRegistry.implementationPower())
+            .balanceOf(msg.sender);
+        uint256 downvotes = proposalDownvotesByUser[msg.sender][_proposalIndex];
+        if (downvotes > 0) {
+            proposalDownvotesByUser[msg.sender][_proposalIndex] = 0;
+            proposal[_proposalIndex].downvotes -= downvotes;
+        }
+        proposal[_proposalIndex].upvotes +=
+            upvotes -
+            proposalUpvotesByUser[msg.sender][_proposalIndex];
+        proposalUpvotesByUser[msg.sender][_proposalIndex] = upvotes;
     }
 
-    function downvote(uint256 _proposalIndex) external nonReentrant {
-        proposalUpvotesByUser[msg.sender][_proposalIndex] = 0;
-        proposalDownvotesByUser[msg.sender][_proposalIndex] = IERC20(
-            addressRegistry.implementationPower()
-        ).balanceOf(msg.sender);
+    function downvote(
+        uint256 _proposalIndex
+    ) external nonReentrant OngoingProposal(_proposalIndex) {
+        uint256 downvotes = IERC20(addressRegistry.implementationPower())
+            .balanceOf(msg.sender);
+        uint256 upvotes = proposalUpvotesByUser[msg.sender][_proposalIndex];
+        if (upvotes > 0) {
+            proposalUpvotesByUser[msg.sender][_proposalIndex] = 0;
+            proposal[_proposalIndex].upvotes -= upvotes;
+        }
+        proposal[_proposalIndex].downvotes +=
+            downvotes -
+            proposalDownvotesByUser[msg.sender][_proposalIndex];
+        proposalDownvotesByUser[msg.sender][_proposalIndex] = downvotes;
     }
 
     function implementProposal(uint256 _proposalIndex) external nonReentrant {

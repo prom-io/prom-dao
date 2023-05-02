@@ -5,8 +5,5 @@ import type * as promDaoGovernanceWrapSol from "./PromDaoGovernanceWrap.sol";
 export type { promDaoGovernanceWrapSol };
 import type * as promFeesDaoSol from "./PromFeesDao.sol";
 export type { promFeesDaoSol };
-import type * as actionValidator from "./action-validator";
-export type { actionValidator };
 import type * as helpers from "./helpers";
 export type { helpers };
-export type { PromDao } from "./PromDao";

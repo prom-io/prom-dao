@@ -35,7 +35,7 @@ export interface PromFieldSettingDaoInterface extends utils.Interface {
     "createFeeUpdateProposal(address,uint16)": FunctionFragment;
     "currentProposalIndex()": FunctionFragment;
     "downvote(uint256)": FunctionFragment;
-    "getAllParticipatedProposalsByUser()": FunctionFragment;
+    "getAllParticipatedProposalsByUser(address)": FunctionFragment;
     "getOngoingProposals()": FunctionFragment;
     "implementProposal(uint256)": FunctionFragment;
     "proposal(uint256)": FunctionFragment;
@@ -93,7 +93,7 @@ export interface PromFieldSettingDaoInterface extends utils.Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "getAllParticipatedProposalsByUser",
-    values?: undefined
+    values: [PromiseOrValue<string>]
   ): string;
   encodeFunctionData(
     functionFragment: "getOngoingProposals",
@@ -246,12 +246,11 @@ export interface PromFieldSettingDao extends BaseContract {
     ): Promise<ContractTransaction>;
 
     getAllParticipatedProposalsByUser(
+      _user: PromiseOrValue<string>,
       overrides?: CallOverrides
-    ): Promise<[BigNumber[]] & { participatedIndexes: BigNumber[] }>;
+    ): Promise<[BigNumber[]]>;
 
-    getOngoingProposals(
-      overrides?: CallOverrides
-    ): Promise<[BigNumber[]] & { ongoingProposals: BigNumber[] }>;
+    getOngoingProposals(overrides?: CallOverrides): Promise<[BigNumber[]]>;
 
     implementProposal(
       _proposalIndex: PromiseOrValue<BigNumberish>,
@@ -322,6 +321,7 @@ export interface PromFieldSettingDao extends BaseContract {
   ): Promise<ContractTransaction>;
 
   getAllParticipatedProposalsByUser(
+    _user: PromiseOrValue<string>,
     overrides?: CallOverrides
   ): Promise<BigNumber[]>;
 
@@ -396,6 +396,7 @@ export interface PromFieldSettingDao extends BaseContract {
     ): Promise<void>;
 
     getAllParticipatedProposalsByUser(
+      _user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber[]>;
 
@@ -492,6 +493,7 @@ export interface PromFieldSettingDao extends BaseContract {
     ): Promise<BigNumber>;
 
     getAllParticipatedProposalsByUser(
+      _user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<BigNumber>;
 
@@ -559,6 +561,7 @@ export interface PromFieldSettingDao extends BaseContract {
     ): Promise<PopulatedTransaction>;
 
     getAllParticipatedProposalsByUser(
+      _user: PromiseOrValue<string>,
       overrides?: CallOverrides
     ): Promise<PopulatedTransaction>;
 
