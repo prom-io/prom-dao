@@ -18,9 +18,7 @@ interface ITradeMarketplace {
 }
 
 error IneligibleImplementation();
-error AlreadyVotedAgainst();
 error UnauthorizedCleanse();
-error InvalidCleanseAmount();
 error ExpiredProposal();
 
 contract PromFieldSettingDao is ReentrancyGuard {
@@ -137,7 +135,7 @@ contract PromFieldSettingDao is ReentrancyGuard {
         address _voter,
         uint256 _proposalIndex,
         uint256 _amount
-    ) public nonReentrant OwnerOrWrapper(_voter) {
+    ) external nonReentrant OwnerOrWrapper(_voter) {
         _cleanse(_voter, _proposalIndex, _amount);
     }
 
@@ -152,18 +150,20 @@ contract PromFieldSettingDao is ReentrancyGuard {
                     _voter
                 ][_proposalIndex];
                 proposalDownvotesByUser[_voter][_proposalIndex] = 0;
+            } else {
+                proposalDownvotesByUser[_voter][_proposalIndex] -= _amount;
+                proposal[_proposalIndex].downvotes -= _amount;
             }
-            proposalDownvotesByUser[_voter][_proposalIndex] -= _amount;
-            proposal[_proposalIndex].downvotes -= _amount;
         } else if (proposalUpvotesByUser[_voter][_proposalIndex] != 0) {
             if (_amount > proposalUpvotesByUser[_voter][_proposalIndex]) {
                 proposal[_proposalIndex].upvotes -= proposalUpvotesByUser[
                     _voter
                 ][_proposalIndex];
                 proposalUpvotesByUser[_voter][_proposalIndex] = 0;
+            } else {
+                proposalUpvotesByUser[_voter][_proposalIndex] -= _amount;
+                proposal[_proposalIndex].upvotes -= _amount;
             }
-            proposalUpvotesByUser[_voter][_proposalIndex] -= _amount;
-            proposal[_proposalIndex].upvotes -= _amount;
         }
     }
 

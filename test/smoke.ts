@@ -6,7 +6,7 @@ import { PromDaoGovernanceWrap } from "../typechain-types/contracts/PromDaoGover
 import { PromFieldSettingDao } from "../typechain-types/contracts/PromFeesDao.sol";
 import { AddressRegistry } from "../typechain-types/contracts/helpers/AddressRegistry";
 import { ReentrancyAttacker } from "../typechain-types/contracts/helpers/ReentranctAttacker.sol/ReentrancyAttacker";
-import { latest } from "./utils/timeMethods";
+import { advanceTime, latest } from "./utils/timeMethods";
 
 describe("Smoke functionality of Prom DAO", () => {
   context("Smoke tests", async () => {
@@ -242,7 +242,7 @@ describe("Smoke functionality of Prom DAO", () => {
       expect((await getProposal(1)).upvotes).to.be.equal(
         ethers.utils.parseEther("2")
       );
-      console.log("user: ", user.address);
+
       await wrap.connect(user).unwrap(ethers.utils.parseEther("2"));
       expect(await wrap.balanceOf(user.address)).to.be.equal(
         ethers.utils.parseEther("0")
@@ -251,16 +251,222 @@ describe("Smoke functionality of Prom DAO", () => {
         ethers.utils.parseEther("0")
       );
     });
-    it("should not change upvotes if voting with 0 power", async () => {});
-    it("should let user with power to downvote", async () => {});
-    it("should not abuse downvote with the same power", async () => {});
-    it("should let update downvote with the new power", async () => {});
-    it("should not change downvote if voting with 0 power", async () => {});
-    it("should not let implement the proposal if threshold is not reached", async () => {});
-    it("should let implement the proposal if threshold is reached", async () => {});
-    it("should not let implement the same proposal twice if threshold is reached", async () => {});
-    it("should not let users use the same proposal votes after implementation", async () => {});
-    it("should let create new proposals after some proposal was implemented", async () => {});
-    it("should not let implement upvote or downvote after deadline is reached", async () => {});
+    it("should not change upvotes if voting with 0 power", async () => {
+      expect(await wrap.balanceOf(hacker.address)).to.be.equal(0);
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+
+      await feesDao.connect(hacker).upvote(1);
+
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should let user with power to downvote", async () => {
+      await wrap.connect(user).wrap(ethers.utils.parseEther("1"));
+      await expect(feesDao.connect(user).downvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("1")
+      );
+    });
+    it("should not abuse downvote with the same power", async () => {
+      await expect(feesDao.connect(user).downvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("1")
+      );
+    });
+    it("should let update downvote with the new power", async () => {
+      await wrap.connect(user).wrap(ethers.utils.parseEther("1"));
+      await expect(feesDao.connect(user).downvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("2")
+      );
+    });
+
+    it("should not change downvote if voting with 0 power", async () => {
+      await expect(feesDao.connect(hacker).downvote(1)).not.to.be.reverted;
+
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("2")
+      );
+    });
+    it("should not let implement the proposal if threshold is not reached", async () => {
+      await expect(feesDao.implementProposal(1)).to.be.revertedWithCustomError(
+        feesDao,
+        "IneligibleImplementation"
+      );
+    });
+    it("should let change position from downvote to upvote in a single tx", async () => {
+      await prom
+        .connect(promOwner)
+        .transfer(user.address, ethers.utils.parseEther("5"));
+      await wrap.connect(user).wrap(ethers.utils.parseEther("13"));
+      expect(await wrap.balanceOf(user.address)).to.be.equal(
+        ethers.utils.parseEther("15")
+      );
+
+      await expect(feesDao.connect(user).upvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("15")
+      );
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should let change position from upvote to downvote in a single tx", async () => {
+      await expect(feesDao.connect(user).downvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("15")
+      );
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+      await expect(feesDao.connect(user).upvote(1)).not.to.be.reverted;
+      expect((await getProposal(1)).upvotes).to.be.equal(
+        ethers.utils.parseEther("15")
+      );
+      expect((await getProposal(1)).downvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should let implement the proposal if threshold is reached", async () => {
+      await expect(feesDao.implementProposal(1)).not.to.be.reverted;
+
+      expect(
+        await addressRegistry.isTradeCollectionEnabled(prom.address)
+      ).to.equal(1000);
+    });
+    it("should not let implement the same proposal twice if threshold is reached", async () => {
+      await expect(feesDao.implementProposal(1)).to.be.reverted;
+    });
+    it("should not let users use the same proposal votes after implementation", async () => {
+      await expect(
+        feesDao.connect(user).upvote(1)
+      ).to.be.revertedWithCustomError(feesDao, "ExpiredProposal");
+    });
+    it("should let create new proposals after some proposal was implemented", async () => {
+      await expect(feesDao.createFeeUpdateProposal(prom.address, 100)).not.to.be
+        .reverted;
+      expect((await getProposal(2)).deadlineTimestamp).to.be.equal(
+        (await latest()).add(14 * 86400)
+      );
+      expect((await getProposal(2)).targetFee).to.be.equal(100);
+    });
+    it("should not let implement upvote or downvote after deadline is reached", async () => {
+      await advanceTime(15 * 86400);
+      await expect(
+        feesDao.connect(user).upvote(2)
+      ).to.be.revertedWithCustomError(feesDao, "ExpiredProposal");
+    });
+    it("should handle correctly if user upvoted then got more power and went to downvote", async () => {
+      await feesDao.createFeeUpdateProposal(prom.address, 10000);
+      await feesDao.connect(user).upvote(3);
+      expect((await getProposal(3)).upvotes).to.be.equal(
+        ethers.utils.parseEther("15")
+      );
+
+      await prom
+        .connect(promOwner)
+        .transfer(user.address, ethers.utils.parseEther("2"));
+      await wrap.connect(user).wrap(ethers.utils.parseEther("2"));
+      await expect(feesDao.connect(user).downvote(3)).not.to.be.reverted;
+      expect((await getProposal(3)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+      expect((await getProposal(3)).downvotes).to.be.equal(
+        ethers.utils.parseEther("17")
+      );
+    });
+    it("should handle correctly if user downvoted then got more power and went to upvote", async () => {
+      await feesDao.createFeeUpdateProposal(prom.address, 10000);
+      await feesDao.connect(user).downvote(4);
+      expect((await getProposal(4)).downvotes).to.be.equal(
+        ethers.utils.parseEther("17")
+      );
+
+      await prom
+        .connect(promOwner)
+        .transfer(user.address, ethers.utils.parseEther("2"));
+      await wrap.connect(user).wrap(ethers.utils.parseEther("2"));
+      await expect(feesDao.connect(user).upvote(4)).not.to.be.reverted;
+      expect((await getProposal(4)).upvotes).to.be.equal(
+        ethers.utils.parseEther("19")
+      );
+      expect((await getProposal(4)).downvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should handle correctly if user upvoted then got more power and went to unwrap all token", async () => {
+      await feesDao.createFeeUpdateProposal(prom.address, 10000);
+      await feesDao.connect(user).upvote(5);
+      expect((await getProposal(5)).upvotes).to.be.equal(
+        ethers.utils.parseEther("19")
+      );
+
+      await prom
+        .connect(promOwner)
+        .transfer(user.address, ethers.utils.parseEther("2"));
+      await wrap.connect(user).wrap(ethers.utils.parseEther("2"));
+      await expect(wrap.connect(user).unwrap(ethers.utils.parseEther("21"))).not
+        .to.be.reverted;
+      expect((await getProposal(5)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+      expect((await getProposal(5)).downvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should handle correctly if user downvoted then got more power and went to unwrap all token", async () => {
+      await wrap.connect(user).wrap(ethers.utils.parseEther("19"));
+      await feesDao.createFeeUpdateProposal(prom.address, 10000);
+      await feesDao.connect(user).downvote(6);
+      expect((await getProposal(6)).downvotes).to.be.equal(
+        ethers.utils.parseEther("19")
+      );
+
+      await wrap.connect(user).wrap(ethers.utils.parseEther("2"));
+      await expect(wrap.connect(user).unwrap(ethers.utils.parseEther("21"))).not
+        .to.be.reverted;
+      expect((await getProposal(6)).upvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+      expect((await getProposal(6)).downvotes).to.be.equal(
+        ethers.utils.parseEther("0")
+      );
+    });
+    it("should not let cleanse non owner of votes", async () => {
+      await wrap.connect(user).wrap(ethers.utils.parseEther("19"));
+      await feesDao.connect(user).downvote(6);
+      expect((await getProposal(6)).downvotes).to.be.equal(
+        ethers.utils.parseEther("19")
+      );
+      await expect(
+        feesDao.cleanse(user.address, 6, ethers.utils.parseEther("15"))
+      ).to.be.revertedWithCustomError(feesDao, "UnauthorizedCleanse");
+      expect((await getProposal(6)).downvotes).to.be.equal(
+        ethers.utils.parseEther("19")
+      );
+    });
+    it("should let owners cleanse correctly", async () => {
+      await expect(
+        feesDao
+          .connect(user)
+          .cleanse(user.address, 6, ethers.utils.parseEther("15"))
+      ).not.to.be.reverted;
+      expect((await getProposal(6)).downvotes).to.be.equal(
+        ethers.utils.parseEther("4")
+      );
+    });
+    it("should emit event to wrap", async () => {
+      const tx = await wrap.connect(user).wrap(ethers.utils.parseEther("1"));
+      const receipt = await tx.wait();
+
+      const event: string = receipt.events!.find(
+        (event: any) => event.event === "Wrapped"
+      )!.args!.amount;
+
+      expect(event).to.be.equal(ethers.utils.parseEther("1"));
+    });
   });
 });

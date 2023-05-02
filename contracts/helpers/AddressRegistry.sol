@@ -71,7 +71,10 @@ contract AddressRegistry is Ownable {
     function setIsTradeCollectionEnabled(
         address _collectionAddress,
         uint16 _fee
-    ) public onlyOwner {
+    ) public {
+        if (msg.sender != promFeesDao) {
+            _checkOwner();
+        }
         require(_fee >= 0 && _fee <= 10000, "fee out of range");
         isTradeCollectionEnabled[_collectionAddress] = _fee;
 
