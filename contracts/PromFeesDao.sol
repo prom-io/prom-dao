@@ -3,7 +3,6 @@
 pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
 
 interface IAddressRegistry {
     function tradeMarketplace() external returns (address);
