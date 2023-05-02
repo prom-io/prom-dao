@@ -2,7 +2,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { TERC20 } from "../typechain-types/contracts/helpers/TERC20";
-import { PromDaoGovernanceWrap } from "../typechain-types/contracts/PromDaoGovernanceWrap";
+import { PromDaoGovernanceWrap } from "../typechain-types/contracts/PromDaoGovernanceWrap.sol";
 import { PromFieldSettingDao } from "../typechain-types/contracts/PromFeesDao.sol";
 import { AddressRegistry } from "../typechain-types/contracts/helpers/AddressRegistry";
 import { ReentrancyAttacker } from "../typechain-types/contracts/helpers/ReentranctAttacker.sol/ReentrancyAttacker";
